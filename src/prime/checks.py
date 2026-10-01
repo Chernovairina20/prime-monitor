@@ -16,7 +16,7 @@ def find_duplicate_payments(df: pd.DataFrame, gap_minutes: int = 20) -> pd.DataF
     gap = s.groupby(["subscription_id", "amount"])["paid_at"].diff()
     return s[gap < pd.Timedelta(minutes=gap_minutes)]
 
-    def find_nonpositive_amounts(df: pd.DataFrame) -> pd.DataFrame:
-    """Покупки с невозможной суммой."""
-    return df[df["amount"] <= 0]
+def find_nonpositive_amounts(df: pd.DataFrame) -> pd.DataFrame:
+"""Покупки с невозможной суммой."""
+return df[df["amount"] <= 0]
 
