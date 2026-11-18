@@ -1,33 +1,48 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "1a42ef6e-1621-430d-ae66-2bc2be89e8b4",
-   "metadata": {},
-   "outputs": [],
-   "source": []
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3 (ipykernel)",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.12.3"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import math
+from statistics import NormalDist
+
+z = NormalDist().inv_cdf
+
+
+def n_per_group(sigma: float, mde: float, alpha: float = 0.05, power: float = 0.8,
+                comparisons: int = 1) -> int:
+    """Клиентов на каждую группу, чтобы заметить эффект mde с заданной мощностью."""
+    za = z(1 - alpha / (2 * comparisons))
+    zb = z(power)
+    return math.ceil(2 * (za + zb) ** 2 * sigma ** 2 / mde ** 2)
+
+
+def mde_for_n(sigma: float, n: int, alpha: float = 0.05, power: float = 0.8,
+              comparisons: int = 1) -> float:
+    """Минимальный эффект, который заметит пилот с n клиентами на каждую группу."""
+    za = z(1 - alpha / (2 * comparisons))
+    zb = z(power)
+    return (za + zb) * sigma * math.sqrt(2 / n)
+
+
+def diff_ci(t, c, alpha: float = 0.05) -> dict:
+    """Разность средних test - control, ее интервал и p-значение."""
+    d = t.mean() - c.mean()
+    # стандартная ошибка разности: дисперсия каждой группы делится на ее размер
+    se = (t.var() / len(t) + c.var() / len(c)) ** 0.5
+    q = NormalDist().inv_cdf(1 - alpha / 2)
+    p = 2 * (1 - NormalDist().cdf(abs(d / se)))
+    return {"diff": d, "lo": d - q * se, "hi": d + q * se, "p": p}
+
+
+def cuped(y, x):
+    # метрика после поправки CUPED и theta; y и x - pandas.Series одной длины
+    theta = y.cov(x) / x.var()
+    return y - theta * (x - x.mean()), theta
+
+
+def srm_pvalue(sizes) -> float:
+    # p-значение chi2 согласия с равными долями для 2 или 3 групп
+    n = sum(sizes)
+    exp = n / len(sizes)
+    chi2 = sum((s - exp) ** 2 / exp for s in sizes)
+    if len(sizes) == 2:
+        return math.erfc(math.sqrt(chi2 / 2))
+    if len(sizes) == 3:
+        return math.exp(-chi2 / 2)
+    raise ValueError("для 4 и более групп нужен scipy.stats.chisquare")
